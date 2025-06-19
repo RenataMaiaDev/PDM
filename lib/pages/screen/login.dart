@@ -9,23 +9,27 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
+  // Chave do formulário para validação
   final _formKey = GlobalKey<FormState>();
+  // Controllers para capturar texto dos campos
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  // Função para tentar fazer login quando o usuário clicar no botão
   void _tryLogin() async {
     if (_formKey.currentState!.validate()) {
       final repo = UsuarioRepository();
       final email = _emailController.text.trim();
       final senha = _passwordController.text.trim();
 
+      // Chamo o método login do repositório para validar credenciais
       final usuario = await repo.login(email, senha);
 
       if (usuario != null) {
-        // Login OK
+        // Login OK, navego para a página principal, substituindo essa
         Navigator.pushReplacementNamed(context, '/home');
       } else {
-        // Login falhou, mostra mensagem de erro
+        // Login falhou, mostro mensagem de erro para o usuário
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Email ou senha incorretos')),
         );
@@ -36,21 +40,23 @@ class _LoginState extends State<Login> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black, // Fundo preto para tema escuro
       body: SafeArea(
         child: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Form(
-              key: _formKey,
+              key: _formKey, // Passo a chave para o formulário validar
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // Logo da aplicação no topo
                   Image.asset(
                     'assets/image/logo.jpg',
                     height: 90,
                   ),
                   const SizedBox(height: 70),
+                  // Campo de email com validação de formato e preenchimento
                   TextFormField(
                     controller: _emailController,
                     style: const TextStyle(color: Colors.white),
@@ -78,6 +84,7 @@ class _LoginState extends State<Login> {
                     },
                   ),
                   const SizedBox(height: 20),
+                  // Campo de senha com validação mínima e ocultação do texto
                   TextFormField(
                     controller: _passwordController,
                     obscureText: true,
@@ -105,6 +112,7 @@ class _LoginState extends State<Login> {
                     },
                   ),
                   const SizedBox(height: 20),
+                  // Botão para realizar o login, estilizado com cor e bordas arredondadas
                   ElevatedButton(
                     onPressed: _tryLogin,
                     style: ElevatedButton.styleFrom(
@@ -120,11 +128,13 @@ class _LoginState extends State<Login> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  // Texto separador para opções alternativas de login
                   const Text(
                     "or continue with",
                     style: TextStyle(color: Colors.white),
                   ),
                   const SizedBox(height: 10),
+                  // Ícones para login com Facebook ou Apple (ainda sem funcionalidade)
                   const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -134,6 +144,7 @@ class _LoginState extends State<Login> {
                     ],
                   ),
                   const SizedBox(height: 14),
+                  // Texto para link "Esqueceu sua senha?" (sem interação ainda)
                   const Text(
                     "Forgot your password?",
                     style: TextStyle(

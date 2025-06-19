@@ -6,54 +6,106 @@ import 'package:spotfy/database/models/user_model.dart';
 import 'package:spotfy/database/repositories/user_repository.dart';
 
 class UserPage extends StatefulWidget {
-  const UserPage({super.key});
+  // Define se a tela é para cadastro (true) ou edição de perfil (false)
+  final bool isCadastro;
+
+  const UserPage({super.key, this.isCadastro = true});
 
   @override
   State<UserPage> createState() => _UserPageState();
 }
 
 class _UserPageState extends State<UserPage> {
+  // Key para controlar o formulário e validar os campos
   final _formKey = GlobalKey<FormState>();
+
+  // Controllers para os campos de texto do formulário
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
 
+  // Armazeno a foto do usuário em bytes para mostrar e salvar
   Uint8List? _fotoBytes;
 
+  // Lista de câmeras disponíveis no dispositivo, carregadas no initState
   List<CameraDescription>? _cameras;
+
+  // Instância do ImagePicker para pegar imagens da galeria
   final ImagePicker _imagePicker = ImagePicker();
+
+  // Flags para saber se o usuário está logado e seus dados
+  bool _usuarioLogado = false;
+  Usuario? _usuarioLogadoDados;
+
+  // Repositório para acessar dados do usuário no banco
+  final UsuarioRepository _repo = UsuarioRepository();
 
   @override
   void initState() {
     super.initState();
+    // Inicializa a lista de câmeras do aparelho
     _initCameraList();
+
+    // Se for tela de edição, carrego os dados do usuário logado para preencher o formulário
+    if (!widget.isCadastro) {
+      _carregarUsuarioLogado();
+    } else {
+      _usuarioLogado = false;
+    }
   }
 
+  // Método que busca as câmeras disponíveis no dispositivo e atualiza a UI
   Future<void> _initCameraList() async {
-    _cameras = await availableCameras();
+    try {
+      _cameras = await availableCameras();
+      setState(() {}); // Atualiza para poder usar as câmeras depois
+    } catch (e) {
+      debugPrint('Error loading cameras: $e');
+    }
   }
 
+  // Carrega os dados do usuário logado para edição do perfil
+  Future<void> _carregarUsuarioLogado() async {
+    final usuario = await _repo.getUsuarioLogado();
+
+    if (usuario != null) {
+      setState(() {
+        _usuarioLogado = true;
+        _usuarioLogadoDados = usuario;
+        _nomeController.text = usuario.nome;
+        _emailController.text = usuario.email;
+        _fotoBytes = usuario.foto;
+      });
+    } else {
+      setState(() {
+        _usuarioLogado = false;
+      });
+    }
+  }
+
+  // Método para escolher imagem da galeria e atualizar a foto exibida
   Future<void> _pickFromGallery() async {
     try {
       final XFile? pickedFile = await _imagePicker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 600,
+        maxWidth: 600, // Limita o tamanho da imagem para otimizar memória
       );
       if (pickedFile != null) {
         final bytes = await pickedFile.readAsBytes();
         setState(() {
-          _fotoBytes = bytes;
+          _fotoBytes = bytes; // Atualizo foto para mostrar no avatar
         });
       }
     } catch (e) {
-      debugPrint('Erro ao pegar imagem da galeria: $e');
+      debugPrint('Error picking image: $e');
     }
   }
 
+  // Abre modal para escolher entre tirar foto ou escolher da galeria
   void _showImageSourceActionSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.grey[900],
+      backgroundColor: Colors.grey[900], // Fundo escuro para combinar com tema
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
@@ -61,12 +113,14 @@ class _UserPageState extends State<UserPage> {
         return SafeArea(
           child: Wrap(
             children: [
+              // Opção para câmera: abre a tela customizada para tirar foto
               ListTile(
                 leading: const Icon(Icons.camera_alt, color: Colors.white),
-                title: const Text('Câmera', style: TextStyle(color: Colors.white)),
+                title: const Text('Camera', style: TextStyle(color: Colors.white)),
                 onTap: () async {
-                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(); // Fecha o modal
                   if (_cameras != null && _cameras!.isNotEmpty) {
+                    // Navega para tela da câmera e espera receber bytes da foto
                     final bytes = await Navigator.of(context).push<Uint8List>(
                       MaterialPageRoute(
                         builder: (context) => CameraScreen(cameras: _cameras!),
@@ -74,27 +128,30 @@ class _UserPageState extends State<UserPage> {
                     );
                     if (bytes != null) {
                       setState(() {
-                        _fotoBytes = bytes;
+                        _fotoBytes = bytes; // Atualiza foto com imagem tirada
                       });
                     }
                   } else {
+                    // Caso não tenha câmera disponível, mostra mensagem
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Câmera não disponível')),
+                      const SnackBar(content: Text('Camera not available')),
                     );
                   }
                 },
               ),
+              // Opção para escolher imagem da galeria
               ListTile(
                 leading: const Icon(Icons.photo_library, color: Colors.white),
-                title: const Text('Galeria', style: TextStyle(color: Colors.white)),
+                title: const Text('Gallery', style: TextStyle(color: Colors.white)),
                 onTap: () {
-                  Navigator.of(context).pop();
-                  _pickFromGallery();
+                  Navigator.of(context).pop(); // Fecha o modal
+                  _pickFromGallery(); // Abre galeria para escolher imagem
                 },
               ),
+              // Cancelar para fechar o modal sem ação
               ListTile(
                 leading: const Icon(Icons.close, color: Colors.white),
-                title: const Text('Cancelar', style: TextStyle(color: Colors.white)),
+                title: const Text('Cancel', style: TextStyle(color: Colors.white)),
                 onTap: () => Navigator.of(context).pop(),
               ),
             ],
@@ -104,40 +161,63 @@ class _UserPageState extends State<UserPage> {
     );
   }
 
+  // Método para salvar ou atualizar usuário conforme modo da tela
   Future<void> _salvar() async {
     if (_formKey.currentState!.validate()) {
+      // Se for edição e usuário não digitou nova senha, mantém a antiga
+      final senhaParaSalvar = widget.isCadastro || _senhaController.text.isNotEmpty
+          ? _senhaController.text
+          : _usuarioLogadoDados?.senha ?? '';
+
+      // Cria objeto Usuario com dados do formulário
       final usuario = Usuario(
-        nome: _nomeController.text,
-        email: _emailController.text,
-        senha: _senhaController.text,
+        id: _usuarioLogadoDados?.id,
+        nome: _nomeController.text.trim(),
+        email: _emailController.text.trim(),
+        senha: senhaParaSalvar,
         foto: _fotoBytes,
       );
 
-      final repo = UsuarioRepository();
       try {
-        await repo.inserir(usuario);
-
+        if (!widget.isCadastro && _usuarioLogado) {
+          // Atualiza perfil do usuário no banco de dados
+          await _repo.atualizar(usuario);
+          // Mostra mensagem de sucesso
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile updated successfully!'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } else {
+          // Insere novo usuário no banco de dados
+          await _repo.inserir(usuario);
+          // Mensagem de sucesso para cadastro
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('User registered successfully!'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 3),
+            ),
+          );
+          // Reseta o formulário e limpa foto após cadastro
+          _formKey.currentState!.reset();
+          setState(() {
+            _fotoBytes = null;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error saving user: $e');
+        // Mensagem de erro caso algo falhe
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Usuário cadastrado com sucesso!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 3),
-          ),
-        );
-
-        _formKey.currentState!.reset();
-        setState(() {
-          _fotoBytes = null;
-        });
-      } catch (e) {
-        // Tratamento de erro genérico, pode personalizar conforme a necessidade
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Erro ao cadastrar usuário. Tente novamente.'),
+            content: Text('Error saving user. Please try again.'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -146,12 +226,14 @@ class _UserPageState extends State<UserPage> {
 
   @override
   void dispose() {
+    // Sempre libero os controllers para evitar vazamento de memória
     _nomeController.dispose();
     _emailController.dispose();
     _senhaController.dispose();
     super.dispose();
   }
 
+  // Decoração padrão para os campos de texto, tema escuro com cantos arredondados
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
@@ -166,24 +248,31 @@ class _UserPageState extends State<UserPage> {
     );
   }
 
+  // Validador simples para email, com regex básica
   String? _emailValidator(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Informe o email';
+      return 'Please enter your email';
     }
-    // Regex básico para validar email
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
-      return 'Informe um email válido';
+      return 'Enter a valid email address';
     }
     return null;
   }
 
+  // Validador para senha: obrigatório no cadastro, opcional na edição (mas se preencher deve ter 6+ chars)
   String? _senhaValidator(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Informe a senha';
-    }
-    if (value.length < 6) {
-      return 'A senha deve ter no mínimo 6 caracteres';
+    if (widget.isCadastro) {
+      if (value == null || value.isEmpty) {
+        return 'Please enter your password';
+      }
+      if (value.length < 6) {
+        return 'Password must be at least 6 characters long';
+      }
+    } else {
+      if (value != null && value.isNotEmpty && value.length < 6) {
+        return 'Password must be at least 6 characters long';
+      }
     }
     return null;
   }
@@ -191,9 +280,9 @@ class _UserPageState extends State<UserPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black, // Fundo escuro para combinar com tema geral
       appBar: AppBar(
-        title: const Text('Cadastro de Usuário'),
+        title: Text(widget.isCadastro ? 'User Registration' : 'Edit Profile'),
         backgroundColor: Colors.black,
       ),
       body: SafeArea(
@@ -205,14 +294,14 @@ class _UserPageState extends State<UserPage> {
               child: ListView(
                 shrinkWrap: true,
                 children: [
+                  // Avatar clicável para escolher foto: mostra ícone ou imagem selecionada
                   GestureDetector(
                     onTap: _showImageSourceActionSheet,
                     child: CircleAvatar(
                       radius: 80,
                       backgroundColor: Colors.grey[800],
                       child: _fotoBytes == null
-                          ? const Icon(Icons.camera_alt,
-                              size: 70, color: Colors.white)
+                          ? const Icon(Icons.camera_alt, size: 70, color: Colors.white)
                           : ClipOval(
                               child: Image.memory(
                                 _fotoBytes!,
@@ -224,14 +313,16 @@ class _UserPageState extends State<UserPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  // Campo nome com validação básica
                   TextFormField(
                     controller: _nomeController,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Nome'),
+                    decoration: _inputDecoration('Name'),
                     validator: (value) =>
-                        value == null || value.isEmpty ? 'Informe o nome' : null,
+                        value == null || value.isEmpty ? 'Please enter your name' : null,
                   ),
                   const SizedBox(height: 20),
+                  // Campo email com validação mais robusta
                   TextFormField(
                     controller: _emailController,
                     style: const TextStyle(color: Colors.white),
@@ -240,14 +331,20 @@ class _UserPageState extends State<UserPage> {
                     keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _senhaController,
-                    obscureText: true,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Senha'),
-                    validator: _senhaValidator,
-                  ),
-                  const SizedBox(height: 30),
+                  // Campo senha aparece diferente no cadastro e na edição
+                  if (widget.isCadastro)
+                    TextFormField(
+                      controller: _senhaController,
+                      obscureText: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration('Password'),
+                      validator: _senhaValidator,
+                    ),
+                  if (widget.isCadastro)
+                    const SizedBox(height: 30)
+                  else
+                    const SizedBox(height: 20),
+                  // Botão que chama a função de salvar ou editar
                   ElevatedButton(
                     onPressed: _salvar,
                     style: ElevatedButton.styleFrom(
@@ -257,9 +354,9 @@ class _UserPageState extends State<UserPage> {
                         borderRadius: BorderRadius.circular(30),
                       ),
                     ),
-                    child: const Text(
-                      'Salvar',
-                      style: TextStyle(color: Colors.white, fontSize: 18),
+                    child: Text(
+                      widget.isCadastro ? 'Save' : 'Edit',
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
                     ),
                   ),
                 ],
@@ -272,6 +369,7 @@ class _UserPageState extends State<UserPage> {
   }
 }
 
+// Tela que controla a câmera para tirar foto
 class CameraScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
 
@@ -283,21 +381,23 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
-  bool _isInitialized = false;
-  bool _isTakingPicture = false;
+  bool _isInitialized = false; // Flag para saber se a câmera foi iniciada
+  bool _isTakingPicture = false; // Flag para evitar múltiplos cliques
 
   late CameraDescription _selectedCamera;
 
   @override
   void initState() {
     super.initState();
+    // Seleciono a primeira câmera disponível como padrão
     _selectedCamera = widget.cameras.first;
     _initCamera(_selectedCamera);
   }
 
+  // Inicializa o controlador da câmera para a câmera escolhida
   Future<void> _initCamera(CameraDescription camera) async {
     if (_controller != null) {
-      await _controller!.dispose();
+      await _controller!.dispose(); // Desliga câmera anterior antes de iniciar nova
     }
     _controller = CameraController(camera, ResolutionPreset.medium);
     try {
@@ -309,36 +409,42 @@ class _CameraScreenState extends State<CameraScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Erro ao inicializar câmera: $e');
+      debugPrint('Camera initialization error: $e');
     }
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _controller?.dispose(); // Libero recursos da câmera
     super.dispose();
   }
 
+  // Método que tira a foto e retorna a imagem em bytes para a tela anterior
   Future<void> _takePicture() async {
     if (!_isInitialized || _isTakingPicture || _controller == null) return;
+
     setState(() {
-      _isTakingPicture = true;
+      _isTakingPicture = true; // Bloqueia enquanto tira foto
     });
+
     try {
       final XFile picture = await _controller!.takePicture();
       final bytes = await picture.readAsBytes();
-      Navigator.of(context).pop(bytes);
+      if (mounted) {
+        Navigator.of(context).pop(bytes); // Retorna bytes da foto para tela anterior
+      }
     } catch (e) {
-      debugPrint('Erro ao tirar foto: $e');
+      debugPrint('Error taking picture: $e');
     } finally {
       if (mounted) {
         setState(() {
-          _isTakingPicture = false;
+          _isTakingPicture = false; // Libera botão de tirar foto
         });
       }
     }
   }
 
+  // Cria lista de opções para o Dropdown de seleção de câmeras (frontal, traseira etc)
   List<DropdownMenuItem<CameraDescription>> get _cameraDropdownItems {
     return widget.cameras
         .map(
@@ -358,9 +464,10 @@ class _CameraScreenState extends State<CameraScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Tirar Foto'),
+        title: const Text('Take Picture'),
         backgroundColor: Colors.black,
         actions: [
+          // Só mostra dropdown para trocar câmera se tiver mais de uma
           if (widget.cameras.length > 1)
             Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -370,7 +477,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 items: _cameraDropdownItems,
                 onChanged: (camera) {
                   if (camera != null) {
-                    _initCamera(camera);
+                    _initCamera(camera); // Troca de câmera e reinicia preview
                   }
                 },
                 underline: const SizedBox(),
@@ -379,10 +486,11 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
         ],
       ),
+      // Corpo com preview da câmera e botão para tirar foto
       body: _isInitialized && _controller != null
           ? Stack(
               children: [
-                CameraPreview(_controller!),
+                CameraPreview(_controller!), // Preview ao vivo da câmera
                 Positioned(
                   bottom: 40,
                   left: 0,
@@ -400,9 +508,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
               ],
             )
-          : const Center(
-              child: CircularProgressIndicator(color: Colors.white),
-            ),
+          : const Center(child: CircularProgressIndicator(color: Colors.white)),
     );
   }
 }
