@@ -1,3 +1,5 @@
+// ignore_for_file: unused_local_variable
+
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart'; 
 import 'package:spotfy/database/models/music_model.dart';

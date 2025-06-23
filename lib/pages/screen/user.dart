@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:spotfy/database/models/user_model.dart';
 import 'package:spotfy/database/repositories/user_repository.dart';
+import 'package:spotfy/database/utils/profile_notifier.dart';
 
 class UserPage extends StatefulWidget {
   // Define se a tela é para cadastro (true) ou edição de perfil (false)
@@ -191,6 +192,8 @@ class _UserPageState extends State<UserPage> {
               duration: Duration(seconds: 3),
             ),
           );
+          // >>> Chame o notificador de perfil aqui <<<
+          profileNotifier.notifyProfileUpdate();
         } else {
           // Insere novo usuário no banco de dados
           await _repo.inserir(usuario);
@@ -208,6 +211,15 @@ class _UserPageState extends State<UserPage> {
           setState(() {
             _fotoBytes = null;
           });
+          // >>> Chame o notificador de perfil aqui após um novo cadastro,
+          // caso o usuário seja logado automaticamente e a Home precise exibir o novo perfil.
+          // Isso é opcional e depende da sua lógica de login/cadastro.
+          profileNotifier.notifyProfileUpdate();
+        }
+        // Se a tela não for de cadastro, navega de volta após salvar.
+        // Se for cadastro, a lógica de navegação deve ser tratada em outro lugar (ex: tela de login).
+        if (!widget.isCadastro) {
+          Navigator.of(context).pop();
         }
       } catch (e) {
         debugPrint('Error saving user: $e');
@@ -282,8 +294,9 @@ class _UserPageState extends State<UserPage> {
     return Scaffold(
       backgroundColor: Colors.black, // Fundo escuro para combinar com tema geral
       appBar: AppBar(
-        title: Text(widget.isCadastro ? 'User Registration' : 'Edit Profile'),
+        title: Text(widget.isCadastro ? 'Cadastrar Usuário' : 'Editar Perfil'),
         backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white), // Para o botão de voltar
       ),
       body: SafeArea(
         child: Center(
@@ -355,7 +368,7 @@ class _UserPageState extends State<UserPage> {
                       ),
                     ),
                     child: Text(
-                      widget.isCadastro ? 'Save' : 'Edit',
+                      widget.isCadastro ? 'Salvar' : 'Editar',
                       style: const TextStyle(color: Colors.white, fontSize: 18),
                     ),
                   ),
@@ -369,7 +382,8 @@ class _UserPageState extends State<UserPage> {
   }
 }
 
-// Tela que controla a câmera para tirar foto
+// A classe CameraScreen permanece inalterada pois ela apenas captura a imagem
+// e a retorna em bytes, não interagindo diretamente com os dados do perfil.
 class CameraScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
 
@@ -381,23 +395,21 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
-  bool _isInitialized = false; // Flag para saber se a câmera foi iniciada
-  bool _isTakingPicture = false; // Flag para evitar múltiplos cliques
+  bool _isInitialized = false;
+  bool _isTakingPicture = false;
 
   late CameraDescription _selectedCamera;
 
   @override
   void initState() {
     super.initState();
-    // Seleciono a primeira câmera disponível como padrão
     _selectedCamera = widget.cameras.first;
     _initCamera(_selectedCamera);
   }
 
-  // Inicializa o controlador da câmera para a câmera escolhida
   Future<void> _initCamera(CameraDescription camera) async {
     if (_controller != null) {
-      await _controller!.dispose(); // Desliga câmera anterior antes de iniciar nova
+      await _controller!.dispose();
     }
     _controller = CameraController(camera, ResolutionPreset.medium);
     try {
@@ -415,36 +427,34 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() {
-    _controller?.dispose(); // Libero recursos da câmera
+    _controller?.dispose();
     super.dispose();
   }
 
-  // Método que tira a foto e retorna a imagem em bytes para a tela anterior
   Future<void> _takePicture() async {
     if (!_isInitialized || _isTakingPicture || _controller == null) return;
 
     setState(() {
-      _isTakingPicture = true; // Bloqueia enquanto tira foto
+      _isTakingPicture = true;
     });
 
     try {
       final XFile picture = await _controller!.takePicture();
       final bytes = await picture.readAsBytes();
       if (mounted) {
-        Navigator.of(context).pop(bytes); // Retorna bytes da foto para tela anterior
+        Navigator.of(context).pop(bytes);
       }
     } catch (e) {
       debugPrint('Error taking picture: $e');
     } finally {
       if (mounted) {
         setState(() {
-          _isTakingPicture = false; // Libera botão de tirar foto
+          _isTakingPicture = false;
         });
       }
     }
   }
 
-  // Cria lista de opções para o Dropdown de seleção de câmeras (frontal, traseira etc)
   List<DropdownMenuItem<CameraDescription>> get _cameraDropdownItems {
     return widget.cameras
         .map(
@@ -467,7 +477,6 @@ class _CameraScreenState extends State<CameraScreen> {
         title: const Text('Take Picture'),
         backgroundColor: Colors.black,
         actions: [
-          // Só mostra dropdown para trocar câmera se tiver mais de uma
           if (widget.cameras.length > 1)
             Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -477,7 +486,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 items: _cameraDropdownItems,
                 onChanged: (camera) {
                   if (camera != null) {
-                    _initCamera(camera); // Troca de câmera e reinicia preview
+                    _initCamera(camera);
                   }
                 },
                 underline: const SizedBox(),
@@ -486,11 +495,10 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
         ],
       ),
-      // Corpo com preview da câmera e botão para tirar foto
       body: _isInitialized && _controller != null
           ? Stack(
               children: [
-                CameraPreview(_controller!), // Preview ao vivo da câmera
+                CameraPreview(_controller!),
                 Positioned(
                   bottom: 40,
                   left: 0,

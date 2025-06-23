@@ -22,7 +22,7 @@ class FavoriteArtistsSection extends StatelessWidget {
       children: [
         // Título da seção com estilo destacado para chamar atenção do usuário
         const Text(
-          'Seus Artistas Favoritos',
+          'Artistas Favoritos',
           style: TextStyle(
             color: Colors.white, 
             fontSize: 20,        
