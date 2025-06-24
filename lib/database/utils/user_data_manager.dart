@@ -1,7 +1,6 @@
-// lib/utils/user_data_manager.dart
 import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert'; // <<< IMPORTANTE: Adicione esta importação para base64Encode/Decode
+import 'dart:convert';
 
 class UserDataManager {
   static const _userNameKey = 'userName';

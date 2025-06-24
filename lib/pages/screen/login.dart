@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:spotfy/database/repositories/user_repository.dart';
+import 'package:spotfy/database/utils/user_data_manager.dart'; 
+import 'package:spotfy/database/utils/profile_notifier.dart';
+import 'package:spotfy/pages/screen/user.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -26,7 +29,17 @@ class _LoginState extends State<Login> {
       final usuario = await repo.login(email, senha);
 
       if (usuario != null) {
+        // --- INÍCIO DAS MODIFICAÇÕES ---
+        // 1. Salva os dados do usuário logado no UserDataManager
+        await UserDataManager.saveUserName(usuario.nome);
+        await UserDataManager.saveUserPhoto(usuario.foto);
+
+        // 2. Notifica o ProfileNotifier para que os widgets que dependem do perfil
+        // (como UserAvatar e AppDrawer) possam se atualizar automaticamente.
+        profileNotifier.notifyProfileUpdate();
+
         // Login OK, navego para a página principal, substituindo essa
+        // Certifique-se de que '/home' está configurado nas rotas do seu MaterialApp
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         // Login falhou, mostro mensagem de erro para o usuário
@@ -35,6 +48,14 @@ class _LoginState extends State<Login> {
         );
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _formKey.currentState?.dispose(); // Dispor o GlobalKey também
+    super.dispose();
   }
 
   @override
@@ -82,6 +103,7 @@ class _LoginState extends State<Login> {
                       }
                       return null;
                     },
+                    keyboardType: TextInputType.emailAddress, // Teclado otimizado para email
                   ),
                   const SizedBox(height: 20),
                   // Campo de senha com validação mínima e ocultação do texto
@@ -142,6 +164,23 @@ class _LoginState extends State<Login> {
                       SizedBox(width: 10),
                       Icon(Icons.apple, color: Colors.white, size: 46),
                     ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Botão para navegar para a tela de cadastro
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const UserPage(isCadastro: true)),
+                      );
+                    },
+                    child: const Text(
+                      "Não tem uma conta? Cadastre-se!",
+                      style: TextStyle(
+                        color: Colors.white,
+                        decoration: TextDecoration.underline, // Adicionei sublinhado para parecer mais um link
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 14),
                   // Texto para link "Esqueceu sua senha?" (sem interação ainda)

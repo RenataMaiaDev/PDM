@@ -1,13 +1,13 @@
-// lib/widgets/music_player_button.dart
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:audioplayers/audioplayers.dart'; // Minha biblioteca de áudio.
 
+/// Meu botão de "Play/Pause" para músicas.
 class MusicPlayerButton extends StatefulWidget {
-  final String audioPath;
-  final String musicTitle;
-  final double iconSize;
-  final Color iconColor;
-  final Color? backgroundColor;
+  final String audioPath; // Caminho do arquivo de áudio.
+  final String musicTitle; // Título da música (para debug).
+  final double iconSize; // Tamanho do ícone.
+  final Color iconColor; // Cor do ícone.
+  final Color? backgroundColor; // Cor de fundo opcional.
 
   const MusicPlayerButton({
     super.key,
@@ -22,25 +22,27 @@ class MusicPlayerButton extends StatefulWidget {
   State<MusicPlayerButton> createState() => _MusicPlayerButtonState();
 }
 
+/// Estado que gerencia a reprodução do áudio.
 class _MusicPlayerButtonState extends State<MusicPlayerButton> {
-  late AudioPlayer _audioPlayer;
-  PlayerState _playerState = PlayerState.stopped;
+  late AudioPlayer _audioPlayer; // Meu player de áudio.
+  PlayerState _playerState = PlayerState.stopped; // Estado atual: parado, tocando, pausado.
 
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
-    debugPrint('MusicPlayerButton - Inicializado para: ${widget.musicTitle}, Path: ${widget.audioPath}');
+    _audioPlayer = AudioPlayer(); // Inicializo o player.
+    debugPrint('MusicPlayerButton - Inicializado: ${widget.musicTitle}');
 
+    // Escuto mudanças de estado do player para atualizar a UI.
     _audioPlayer.onPlayerStateChanged.listen((state) {
       if (mounted) {
         setState(() {
           _playerState = state;
         });
       }
-      debugPrint('MusicPlayerButton - [${widget.musicTitle}] PlayerState changed: $state');
+      debugPrint('MusicPlayerButton - [${widget.musicTitle}] Estado: $state');
+      // Quando a música termina, volto para o estado parado.
       if (state == PlayerState.completed) {
-        debugPrint('MusicPlayerButton - [${widget.musicTitle}] Player complete.');
         if (mounted) {
           setState(() {
             _playerState = PlayerState.stopped;
@@ -49,32 +51,35 @@ class _MusicPlayerButtonState extends State<MusicPlayerButton> {
       }
     });
 
+    // Logs do audioplayers para debug.
     _audioPlayer.onLog.listen((msg) {
-      debugPrint('MusicPlayerButton - [${widget.musicTitle}] AudioPlayers Log: $msg');
+      debugPrint('MusicPlayerButton - [${widget.musicTitle}] Log: $msg');
     });
   }
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
-    debugPrint('MusicPlayerButton - Dispose para: ${widget.musicTitle}');
+    _audioPlayer.dispose(); // Libero os recursos do player.
+    debugPrint('MusicPlayerButton - Dispose: ${widget.musicTitle}');
     super.dispose();
   }
 
+  /// Toca a música.
   Future<void> _play() async {
-    debugPrint('MusicPlayerButton - [${widget.musicTitle}] Chamado _play(). Current state: $_playerState');
+    debugPrint('MusicPlayerButton - [${widget.musicTitle}] Play. Estado: $_playerState');
     if (widget.audioPath.isEmpty) {
-      debugPrint('MusicPlayerButton - [${widget.musicTitle}] audioPath está vazio.');
+      debugPrint('MusicPlayerButton - [${widget.musicTitle}] Caminho do áudio vazio.');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Caminho do áudio não especificado.')),
       );
       return;
     }
     try {
+      // Começo a tocar o arquivo de áudio (assumo que é um asset local).
       await _audioPlayer.play(AssetSource(widget.audioPath));
-      debugPrint('MusicPlayerButton - [${widget.musicTitle}] Início da reprodução de asset: ${widget.audioPath}');
+      debugPrint('MusicPlayerButton - [${widget.musicTitle}] Reproduzindo: ${widget.audioPath}');
     } catch (e) {
-      debugPrint('MusicPlayerButton - [${widget.musicTitle}] ERRO FATAL ao tentar tocar asset ${widget.audioPath}: $e');
+      debugPrint('MusicPlayerButton - [${widget.musicTitle}] ERRO ao tocar: $e');
       if (mounted) {
         setState(() {
           _playerState = PlayerState.stopped;
@@ -83,22 +88,16 @@ class _MusicPlayerButtonState extends State<MusicPlayerButton> {
     }
   }
 
+  /// Pausa a música.
   Future<void> _pause() async {
-    debugPrint('MusicPlayerButton - [${widget.musicTitle}] Chamado _pause().');
+    debugPrint('MusicPlayerButton - [${widget.musicTitle}] Pause.');
     await _audioPlayer.pause();
-    debugPrint('MusicPlayerButton - [${widget.musicTitle}] Pausou.');
-  }
-
-  // ignore: unused_element
-  Future<void> _stop() async {
-    debugPrint('MusicPlayerButton - [${widget.musicTitle}] Chamado _stop().');
-    await _audioPlayer.stop();
-    debugPrint('MusicPlayerButton - [${widget.musicTitle}] Parou.');
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      // Se houver cor de fundo, crio um círculo para o botão.
       decoration: widget.backgroundColor != null
           ? BoxDecoration(
               color: widget.backgroundColor,
@@ -107,11 +106,13 @@ class _MusicPlayerButtonState extends State<MusicPlayerButton> {
           : null,
       child: IconButton(
         icon: Icon(
+          // Ícone muda entre play e pause.
           _playerState == PlayerState.playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
           size: widget.iconSize,
           color: widget.iconColor,
         ),
         onPressed: () {
+          // Alterno entre pausar e tocar.
           if (_playerState == PlayerState.playing) {
             _pause();
           } else {

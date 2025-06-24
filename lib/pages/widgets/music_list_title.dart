@@ -21,7 +21,6 @@ class MusicListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      // Espaçamento vertical e horizontal para o item
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
       child: Row(
         children: [

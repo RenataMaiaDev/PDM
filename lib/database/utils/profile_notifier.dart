@@ -1,4 +1,3 @@
-// lib/utils/profile_notifier.dart
 import 'package:flutter/material.dart';
 
 // Um ValueNotifier simples para notificar mudanças no perfil do usuário
@@ -10,6 +9,4 @@ class ProfileNotifier extends ChangeNotifier {
   }
 }
 
-// Crie uma instância global para que possa ser acessada de qualquer lugar.
-// Isso permite que diferentes partes do seu app acessem o mesmo notificador.
 final profileNotifier = ProfileNotifier();

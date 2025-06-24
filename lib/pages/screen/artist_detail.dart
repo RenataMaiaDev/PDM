@@ -62,12 +62,12 @@ class _ArtistDetailPageState extends State<ArtistDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Fundo escuro para o tema da app
+      backgroundColor: Colors.black, 
       appBar: AppBar(
-        backgroundColor: Colors.black, // Mantém o appbar no mesmo tema
+        backgroundColor: Colors.black,
         elevation: 0,
         title: Text(
-          widget.artist.nome, // Mostra o nome do artista na barra
+          widget.artist.nome, 
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -76,7 +76,7 @@ class _ArtistDetailPageState extends State<ArtistDetailPage> {
         ),
         iconTheme: const IconThemeData(
           color: Colors.white,
-        ), // Ícones brancos no appbar
+        ),
       ),
       body: _isLoading
           ? const Center(

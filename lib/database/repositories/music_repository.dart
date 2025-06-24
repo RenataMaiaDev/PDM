@@ -17,6 +17,12 @@ class MusicRepository {
   }
 
   // Busca todas as músicas do banco
+/*************  ✨ Windsurf Command ⭐  *************/
+  /// Retorna todas as músicas do banco de dados.
+  ///
+  /// Retorna uma lista de objetos [Musica] com todas as músicas
+  /// presentes no banco.
+/*******  bad4e56b-d4b5-46c7-b02c-9af00f9b5437  *******/
   Future<List<Musica>> getAllMusicas() async {
     final db = await _dbHelper.database;
     final List<Map<String, dynamic>> maps = await db.query('musicas');

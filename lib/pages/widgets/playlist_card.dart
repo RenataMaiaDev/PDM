@@ -1,12 +1,12 @@
-// lib/widgets/playlist_card.dart
 import 'package:flutter/material.dart';
 import 'package:spotfy/database/models/playlist_model.dart';
 import 'package:spotfy/database/repositories/playlist_repository.dart';
 import 'package:spotfy/pages/screen/playlist_music_list_screen.dart';
 
+// Meu card para exibir uma playlist.
 class PlaylistCard extends StatelessWidget {
-  final Playlist playlist;
-  final VoidCallback? onDelete; // Callback para notificar a tela superior sobre a exclusão
+  final Playlist playlist; // A playlist a ser exibida.
+  final VoidCallback? onDelete; // Callback para quando a playlist for deletada.
 
   const PlaylistCard({
     super.key,
@@ -14,15 +14,16 @@ class PlaylistCard extends StatelessWidget {
     this.onDelete,
   });
 
-  // Função para confirmar e deletar a playlist
+  // Confirma e deleta a playlist.
   Future<void> _confirmAndDeletePlaylist(BuildContext context) async {
     if (playlist.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro: ID da playlist não encontrado para exclusão.')),
+        const SnackBar(content: Text('Erro: ID da playlist não encontrado.')),
       );
       return;
     }
 
+    // Mostro um AlertDialog para confirmar.
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -47,18 +48,19 @@ class PlaylistCard extends StatelessWidget {
       },
     );
 
+    // Se confirmado, tento deletar.
     if (confirm == true) {
       try {
         final playlistRepo = PlaylistRepository();
         await playlistRepo.deletePlaylist(playlist.id!);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Playlist "${playlist.nome}" excluída com sucesso!')),
+          SnackBar(content: Text('Playlist "${playlist.nome}" excluída!')),
         );
-        onDelete?.call(); // Chama o callback para recarregar a lista na PlaylistsScreen
+        onDelete?.call(); // Notifico a tela superior.
       } catch (e) {
-        debugPrint('PlaylistCard - Erro ao deletar playlist: $e');
+        debugPrint('PlaylistCard - Erro ao deletar: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao excluir playlist. Tente novamente.')),
+          const SnackBar(content: Text('Erro ao excluir. Tente novamente.')),
         );
       }
     }
@@ -66,9 +68,9 @@ class PlaylistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector( // <<< ENVOLVE O CARD COM GestureDetector
+    return GestureDetector( // Torno o card clicável.
       onTap: () {
-        // Navega para a tela de lista de músicas da playlist
+        // Ao clicar, navego para a tela de músicas da playlist.
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -76,17 +78,18 @@ class PlaylistCard extends StatelessWidget {
           ),
         );
       },
-      child: Column(
+      child: Column( // Organizo o conteúdo em uma coluna.
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(
+          Stack( // Para sobrepor a imagem e o botão de deletar.
             children: [
-              Container(
+              Container( // Área da capa da playlist.
                 width: double.infinity,
                 height: 140,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   color: Colors.grey[800],
+                  // Exibo a capa ou um ícone padrão.
                   image: playlist.capaBytes != null
                       ? DecorationImage(
                           image: MemoryImage(playlist.capaBytes!),
@@ -98,32 +101,30 @@ class PlaylistCard extends StatelessWidget {
                     ? const Icon(Icons.playlist_play, color: Colors.white54, size: 60)
                     : null,
               ),
-              Positioned(
+              Positioned( // Botão de deletar no canto superior direito.
                 top: 4,
                 right: 4,
                 child: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.white70, size: 20),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.black54,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    minimumSize: Size.zero,
+                    backgroundColor: Colors.black54, // Fundo semitransparente.
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    minimumSize: Size.zero, // Botão compacto.
                     padding: const EdgeInsets.all(4),
                   ),
-                  onPressed: () => _confirmAndDeletePlaylist(context),
+                  onPressed: () => _confirmAndDeletePlaylist(context), // Chamo a função de exclusão.
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
+          Text( // Nome da playlist.
             playlist.nome,
             style: const TextStyle(color: Colors.white, fontSize: 14),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          Text(
+          Text( // Descrição da playlist.
             playlist.descricao ?? '',
             style: TextStyle(color: Colors.grey[400], fontSize: 12),
             maxLines: 1,
